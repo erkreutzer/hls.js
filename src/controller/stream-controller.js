@@ -231,34 +231,34 @@ class StreamController extends BaseStreamController {
       bufferEnd = bufferInfo.end,
       frag;
 
-    if (levelDetails.initSegment && !levelDetails.initSegment.data) {
-      frag = levelDetails.initSegment;
-    } else {
-      // in case of live playlist we need to ensure that requested position is not located before playlist start
-      if (levelDetails.live) {
-        let initialLiveManifestSize = this.config.initialLiveManifestSize;
-        if (fragLen < initialLiveManifestSize) {
-          logger.warn(`Can not start playback of a level, reason: not enough fragments ${fragLen} < ${initialLiveManifestSize}`);
-          return;
-        }
+    // in case of live playlist we need to ensure that requested position is not located before playlist start
+    if (levelDetails.live) {
+      let initialLiveManifestSize = this.config.initialLiveManifestSize;
+      if (fragLen < initialLiveManifestSize) {
+        logger.warn(`Can not start playback of a level, reason: not enough fragments ${fragLen} < ${initialLiveManifestSize}`);
+        return;
+      }
 
-        frag = this._ensureFragmentAtLivePoint(levelDetails, bufferEnd, start, end, fragPrevious, fragments, fragLen);
-        // if it explicitely returns null don't load any fragment and exit function now
-        if (frag === null) {
-          return;
-        }
-      } else {
-        // VoD playlist: if bufferEnd before start of playlist, load first fragment
-        if (bufferEnd < start) {
-          frag = fragments[0];
-        }
+      frag = this._ensureFragmentAtLivePoint(levelDetails, bufferEnd, start, end, fragPrevious, fragments, fragLen);
+      // if it explicitely returns null don't load any fragment and exit function now
+      if (frag === null) {
+        return;
+      }
+    } else {
+      // VoD playlist: if bufferEnd before start of playlist, load first fragment
+      if (bufferEnd < start) {
+        frag = fragments[0];
       }
     }
+
     if (!frag) {
       frag = this._findFragment(start, fragPrevious, fragLen, fragments, bufferEnd, end, levelDetails);
     }
 
     if (frag) {
+      if (levelDetails.initSegments[frag.initSegment] && !levelDetails.initSegments[frag.initSegment].data) {
+        frag = levelDetails.initSegments[frag.initSegment].fragment;
+      }
       if (frag.encrypted) {
         logger.log(`Loading key for ${frag.sn} of [${levelDetails.startSN} ,${levelDetails.endSN}],level ${level}`);
         this._loadKey(frag);
@@ -857,7 +857,7 @@ class StreamController extends BaseStreamController {
       } else if (fragLoaded.sn === 'initSegment') {
         this.state = State.IDLE;
         stats.tparsed = stats.tbuffered = window.performance.now();
-        details.initSegment.data = data.payload;
+        details.initSegments[data.frag.relurl].data = data.payload;
         hls.trigger(Event.FRAG_BUFFERED, { stats: stats, frag: fragCurrent, id: 'main' });
         this.tick();
       } else {
@@ -877,7 +877,7 @@ class StreamController extends BaseStreamController {
 
         // time Offset is accurate if level PTS is known, or if playlist is not sliding (not live) and if media is not seeking (this is to overcome potential timestamp drifts between playlists and fragments)
         const accurateTimeOffset = !(media && media.seeking) && (details.PTSKnown || !details.live);
-        const initSegmentData = details.initSegment ? details.initSegment.data : [];
+        const initSegmentData = details.initSegments[fragCurrent.initSegment] ? details.initSegments[fragCurrent.initSegment].data : [];
         const audioCodec = this._getAudioCodec(currentLevel);
 
         // transmux the MPEG-TS data to ISO-BMFF segments

@@ -110,11 +110,13 @@ export function updateFragPTSDTS (details, frag, startPTS, endPTS, startDTS, end
 }
 
 export function mergeDetails (oldDetails, newDetails) {
-  // potentially retrieve cached initsegment
-  if (newDetails.initSegment && oldDetails.initSegment) {
-    newDetails.initSegment = oldDetails.initSegment;
+  // potentially retrieve cached initsegments
+  if (newDetails.initSegments && oldDetails.initSegments) {
+    newDetails.initSegments = {
+      ...newDetails.initSegments,
+      ...oldDetails.initSegments
+    };
   }
-
   // check if old/new playlists have fragments in common
   // loop through overlapping SN and update startPTS , cc, and duration if any found
   let ccOffset = 0;
