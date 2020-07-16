@@ -15,6 +15,7 @@ coverage/
 .idea/*
 
 # Build
-/dist
+# For a fork to be deployable we need to be able to check in the dist directory
+# /dist
 /netlify
 /api-docs
