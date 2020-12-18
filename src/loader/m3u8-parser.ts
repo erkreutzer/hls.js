@@ -3,6 +3,7 @@ import * as URLToolkit from 'url-toolkit';
 import Fragment, { Part } from './fragment';
 import LevelDetails from './level-details';
 import LevelKey from './level-key';
+import InitSegment from './init-segment';
 
 import AttrList from '../utils/attr-list';
 import { logger } from '../utils/logger';
@@ -176,6 +177,7 @@ export default class M3U8Parser {
     let i: number;
     let levelkey: LevelKey | undefined;
     let firstPdtIndex = -1;
+    let initSegment: InitSegment | null = null;
 
     LEVEL_PLAYLIST_REGEX_FAST.lastIndex = 0;
     level.m3u8 = string;
@@ -198,6 +200,9 @@ export default class M3U8Parser {
           frag.level = id;
           frag.cc = discontinuityCounter;
           frag.urlId = levelUrlId;
+          if (initSegment) {
+            frag.initSegment = initSegment.fragment.relurl;
+          }
           fragments.push(frag);
           // avoid sliced strings    https://github.com/video-dev/hls.js/issues/939
           frag.relurl = (' ' + result[3]).slice(1);
@@ -369,7 +374,13 @@ export default class M3U8Parser {
           if (levelkey) {
             frag.levelkey = levelkey;
           }
-          level.initSegment = frag;
+          if (!level.initSegment) {
+            level.initSegment = frag;
+          }
+          if (frag.relurl) {
+            initSegment = new InitSegment(frag);
+            level.initSegments[frag.relurl] = initSegment;
+          }
           frag = new Fragment(type, baseurl);
           frag.rawProgramDateTime = level.initSegment.rawProgramDateTime;
           break;

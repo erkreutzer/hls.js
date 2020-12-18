@@ -91,6 +91,9 @@ export default class Fragment extends BaseSegment {
   public duration: number = 0;
   // sn notates the sequence number for a segment, and if set to a string can be 'initSegment'
   public sn: number | 'initSegment' = 0;
+  // the relurl of the initsegment associated with the fragment which can be found
+  // on level details
+  public initSegment?: string;
   // levelkey is the EXT-X-KEY that applies to this segment for decryption
   // core difference from the private field _decryptdata is the lack of the initialized IV
   // _decryptdata will set the IV for this segment based on the segment number in the fragment

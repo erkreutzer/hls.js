@@ -1,5 +1,6 @@
 import Fragment, { Part } from './fragment';
 import type AttrList from '../utils/attr-list';
+import InitSegment from './init-segment';
 
 const DEFAULT_TARGET_DURATION = 10;
 
@@ -13,6 +14,7 @@ export default class LevelDetails {
   public fragmentHint?: Fragment;
   public partList: Part[] | null = null;
   public initSegment: Fragment | null = null;
+  public initSegments: { [key: string]: InitSegment } = {};
   public live: boolean = true;
   public ageHeader: number = 0;
   public advancedDateTime?: number;

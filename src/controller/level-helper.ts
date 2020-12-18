@@ -156,6 +156,13 @@ export function mergeDetails (oldDetails: LevelDetails, newDetails: LevelDetails
     newDetails.initSegment = oldDetails.initSegment;
   }
 
+  if (newDetails.initSegments && oldDetails.initSegments) {
+    newDetails.initSegments = {
+      ...newDetails.initSegments,
+      ...oldDetails.initSegments
+    };
+  }
+
   if (oldDetails.fragmentHint) {
     // prevent PTS and duration from being adjusted on the next hint
     delete oldDetails.fragmentHint.endPTS;

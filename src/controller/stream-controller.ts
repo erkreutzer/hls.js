@@ -227,50 +227,47 @@ export default class StreamController extends BaseStreamController implements Ne
       return;
     }
 
-    let frag = levelDetails.initSegment;
     let targetBufferTime = 0;
-    if (!frag || frag.data) {
-      // compute max Buffer Length that we could get from this load level, based on level bitrate. don't buffer more than 60 MB and more than 30s
-      const levelBitrate = levelInfo.maxBitrate;
-      let maxBufLen;
-      if (levelBitrate) {
-        maxBufLen = Math.max(8 * config.maxBufferSize / levelBitrate, config.maxBufferLength);
-      } else {
-        maxBufLen = config.maxBufferLength;
-      }
-      maxBufLen = Math.min(maxBufLen, config.maxMaxBufferLength);
+    // compute max Buffer Length that we could get from this load level, based on level bitrate. don't buffer more than 60 MB and more than 30s
+    const levelBitrate = levelInfo.maxBitrate;
+    let maxBufLen;
+    if (levelBitrate) {
+      maxBufLen = Math.max(8 * config.maxBufferSize / levelBitrate, config.maxBufferLength);
+    } else {
+      maxBufLen = config.maxBufferLength;
+    }
+    maxBufLen = Math.min(maxBufLen, config.maxMaxBufferLength);
 
-      // determine next candidate fragment to be loaded, based on current position and end of buffer position
-      // ensure up to `config.maxMaxBufferLength` of buffer upfront
-      const maxBufferHole = pos < config.maxBufferHole ? Math.max(MAX_START_GAP_JUMP, config.maxBufferHole) : config.maxBufferHole;
-      const bufferInfo = BufferHelper.bufferInfo(this.mediaBuffer ? this.mediaBuffer : media, pos, maxBufferHole);
-      const bufferLen = bufferInfo.len;
-      // Stay idle if we are still with buffer margins
-      if (bufferLen >= maxBufLen) {
-        return;
-      }
+    // determine next candidate fragment to be loaded, based on current position and end of buffer position
+    // ensure up to `config.maxMaxBufferLength` of buffer upfront
+    const maxBufferHole = pos < config.maxBufferHole ? Math.max(MAX_START_GAP_JUMP, config.maxBufferHole) : config.maxBufferHole;
+    const bufferInfo = BufferHelper.bufferInfo(this.mediaBuffer ? this.mediaBuffer : media, pos, maxBufferHole);
+    const bufferLen = bufferInfo.len;
+    // Stay idle if we are still with buffer margins
+    if (bufferLen >= maxBufLen) {
+      return;
+    }
 
-      if (this._streamEnded(bufferInfo, levelDetails)) {
-        const data: any = {};
-        if (this.altAudio) {
-          data.type = 'video';
-        }
-
-        this.hls.trigger(Events.BUFFER_EOS, data);
-        this.state = State.ENDED;
-        return;
+    if (this._streamEnded(bufferInfo, levelDetails)) {
+      const data: any = {};
+      if (this.altAudio) {
+        data.type = 'video';
       }
 
-      targetBufferTime = bufferInfo.end;
-      frag = this.getNextFragment(targetBufferTime, levelDetails);
-      // Avoid loop loading by using nextLoadPosition set for backtracking
-      // TODO: this could be improved to simply pick next sn fragment
-      if (frag && this.fragmentTracker.getState(frag) === FragmentState.OK && this.nextLoadPosition > targetBufferTime) {
-        frag = this.getNextFragment(this.nextLoadPosition, levelDetails);
-      }
-      if (!frag) {
-        return;
-      }
+      this.hls.trigger(Events.BUFFER_EOS, data);
+      this.state = State.ENDED;
+      return;
+    }
+
+    targetBufferTime = bufferInfo.end;
+    let frag = this.getNextFragment(targetBufferTime, levelDetails);
+    // Avoid loop loading by using nextLoadPosition set for backtracking
+    // TODO: this could be improved to simply pick next sn fragment
+    if (frag && this.fragmentTracker.getState(frag) === FragmentState.OK && this.nextLoadPosition > targetBufferTime) {
+      frag = this.getNextFragment(this.nextLoadPosition, levelDetails);
+    }
+    if (!frag) {
+      return;
     }
 
     // We want to load the key if we're dealing with an identity key, because we will decrypt
@@ -620,7 +617,8 @@ export default class StreamController extends BaseStreamController implements Ne
 
     // time Offset is accurate if level PTS is known, or if playlist is not sliding (not live)
     const accurateTimeOffset = details.PTSKnown || !details.live;
-    const initSegmentData = details.initSegment?.data || new Uint8Array(0);
+    // const initSegmentDataFallback = details.initSegment?.data || new Uint8Array(0);
+    const initSegmentData = (frag.initSegment && details.initSegments[frag.initSegment]?.data) || new Uint8Array(0);
     const audioCodec = this._getAudioCodec(currentLevel);
 
     // transmux the MPEG-TS data to ISO-BMFF segments

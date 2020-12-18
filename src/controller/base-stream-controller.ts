@@ -313,16 +313,23 @@ export default class BaseStreamController extends TaskLoop implements NetworkCom
         if (!levels) {
           throw new Error('init load aborted, missing levels');
         }
+        if (!frag.relurl) {
+          throw new Error('no relurl');
+        }
 
         const details = levels[frag.level].details as LevelDetails;
         console.assert(details, 'Level details are defined when init segment is loaded');
-        const initSegment = details.initSegment as Fragment;
+        const initSegment = details.initSegments[frag.relurl];
+        console.log('setting initSegmentData for', frag.relurl);
+        console.log(data.payload);
+        // const initSegment = details.initSegment as Fragment;
         console.assert(initSegment, 'Fragment initSegment is defined when init segment is loaded');
 
         const stats = frag.stats;
         this.state = State.IDLE;
         this.fragLoadError = 0;
         initSegment.data = new Uint8Array(data.payload);
+        initSegment.fragment.data = new Uint8Array(data.payload);
         stats.parsing.start = stats.buffering.start = self.performance.now();
         stats.parsing.end = stats.buffering.end = self.performance.now();
 
@@ -518,10 +525,7 @@ export default class BaseStreamController extends TaskLoop implements NetworkCom
     const start = fragments[0].start;
     let frag;
 
-    // If an initSegment is present, it must be buffered first
-    if (levelDetails.initSegment && !levelDetails.initSegment.data) {
-      frag = levelDetails.initSegment;
-    } else if (levelDetails.live) {
+    if (levelDetails.live) {
       const initialLiveManifestSize = config.initialLiveManifestSize;
       if (fragLen < initialLiveManifestSize) {
         this.warn(`Not enough fragments to start playback (have: ${fragLen}, need: ${initialLiveManifestSize})`);
@@ -543,6 +547,18 @@ export default class BaseStreamController extends TaskLoop implements NetworkCom
     if (!frag) {
       const end = config.lowLatencyMode ? levelDetails.partEnd : levelDetails.fragmentEnd;
       frag = this.getFragmentAtPosition(pos, end, levelDetails);
+    }
+
+    if (frag?.initSegment) {
+      // TODO: do we need to keep leveldetails.initSegment "API" around?
+      // if (levelDetails.initSegments[frag.initSegment]) {
+      //   levelDetails.initSegment = levelDetails.initSegments[frag.initSegment].fragment;
+      // }
+
+      if (levelDetails.initSegments[frag.initSegment] && !levelDetails.initSegments[frag.initSegment].data) {
+        console.log('initSegment missing for', frag.initSegment);
+        frag = levelDetails.initSegments[frag.initSegment].fragment;
+      }
     }
 
     return frag;
